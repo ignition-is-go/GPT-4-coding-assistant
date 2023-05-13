@@ -1,10 +1,11 @@
+import os
 from flask import Flask, render_template, request, jsonify
 import json
 from main import interact_with_gpt, conversation_history, annoy_index, index_map
 import logging
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'secret!'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default_secret_key')
 
 # Set up logging
 app.logger.setLevel(logging.INFO)
@@ -13,6 +14,12 @@ app.logger.addHandler(logging.StreamHandler())
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.errorhandler(Exception)
+def handle_exception(error):
+    app.logger.error(f"An error occurred: {error}")
+    response = {"error": str(error)}
+    return jsonify(response), 500
 
 @app.route('/user_message', methods=['POST'])
 def handle_user_message():
@@ -30,6 +37,8 @@ def handle_user_message():
             result["embeddings_referenced"] = relevant_code_files
 
         return jsonify(result)  # Return the response as JSON
-    
+    else:
+        return jsonify({"error": "No user input provided"}), 400
+
 if __name__ == '__main__':
     app.run(debug=True)
