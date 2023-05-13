@@ -105,15 +105,16 @@ def interact_with_gpt(app, annoy_index, index_map, user_input, conversation_hist
         result = {"response": assistant_response, "token_usage": token_usage, "most_similar_files": most_similar_files, "most_similar_file_contents": most_similar_file_contents}
         return result     
                
-with open('embeddings.json', 'r') as f:
-    embeddings_dict = json.load(f)
+if __name__ == "__main__":
+    with open('embeddings.json', 'r') as f:
+        embeddings_dict = json.load(f)
 
-with open('index_map.json', 'r') as f:
-    index_map = json.load(f)
+    with open('index_map.json', 'r') as f:
+        index_map = json.load(f)
 
-annoy_index = AnnoyIndex(768, 'angular')  # 768 is the embedding dimension
-annoy_index.load('embeddings.ann')
+    annoy_index = AnnoyIndex(768, 'angular')  # 768 is the embedding dimension
+    annoy_index.load('embeddings.ann')
 
-print(f"Annoy index loaded: {annoy_index.get_n_items()} items")
+    print(f"Annoy index loaded: {annoy_index.get_n_items()} items")
 
-conversation_history = [{"role": "system", "content": "You are a GPT-4 coding assistant helping with code."}]
+    conversation_history = [{"role": "system", "content": "You are a GPT-4 coding assistant helping with code."}]
