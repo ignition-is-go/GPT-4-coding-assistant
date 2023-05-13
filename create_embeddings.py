@@ -17,11 +17,11 @@ code_completion = pipeline('text-generation', model=model, tokenizer=tokenizer)
 
 def preprocess_code(code, file_type):
     # Remove single-line comments
-    if file_type in ['py', 'js']:
+    if file_type in ['py', 'js', 'cpp', 'h']:
         code = re.sub(r'//.*', '', code)
 
     # Remove multi-line comments
-    if file_type in ['py', 'js', 'css']:
+    if file_type in ['py', 'js', 'css', 'cpp', 'h']:
         code = re.sub(r'/\*[\s\S]*?\*/', '', code)
 
     # Remove HTML comments
@@ -43,6 +43,7 @@ def generate_embeddings_for_code(code):
     code_chunks = [code[i:i + max_len] for i in range(0, len(code), max_len)]
 
     chunk_embeddings = []
+    reduced_code_embedding = []  # Initialize an empty list
     for chunk in code_chunks:
         if len(chunk) > 0:
             inputs = tokenizer.encode_plus(chunk, return_tensors="pt", padding=True, truncation=True, max_length=512)
@@ -60,9 +61,7 @@ def generate_embeddings_for_code(code):
         # Apply PCA to reduce the dimensionality of the embeddings
         reduced_code_embedding = reduce_embedding_dimension([code_embedding])
 
-        return reduced_code_embedding[0]  # Return the first (and only) item in the list
-    else:
-        return []
+    return reduced_code_embedding  # Return the list
     
 def generate_embeddings_for_file(file_path):
     with open(file_path, 'r') as f:
@@ -81,17 +80,19 @@ def generate_embeddings_for_all_files(website_path):
 
     index_counter = 0
     for root, _, files in os.walk(website_path):
-        for ext in ('*.py', '*.html', '*.css', '*.js'):
+        for ext in ('*.py', '*.html', '*.css', '*.js', '*.cpp', '*.h'):  # Include .cpp and .h files
             for file in fnmatch.filter(files, ext):
                 file_path = os.path.join(root, file)
                 embeddings = generate_embeddings_for_file(file_path)
-                embeddings_dict[file_path] = embeddings
+                
+                if embeddings:  # Check if the embeddings list is not empty
+                    embeddings_dict[file_path] = embeddings
 
-                annoy_index.add_item(index_counter, embeddings)
-                index_map[index_counter] = file_path
-                index_counter += 1
+                    annoy_index.add_item(index_counter, embeddings)
+                    index_map[index_counter] = file_path
+                    index_counter += 1
 
-                print(f"Vectorized file: {file_path}")
+                    print(f"Vectorized file: {file_path}")
 
     annoy_index.build(50)  # 50 trees for fast approximate search
     annoy_index.save('embeddings.ann')
@@ -99,7 +100,6 @@ def generate_embeddings_for_all_files(website_path):
         json.dump(embeddings_dict, f)
     with open('index_map.json', 'w') as f:
         json.dump(index_map, f)
-
 
 def reduce_embedding_dimension(embeddings, n_components=200):
     if len(embeddings) > 1:
@@ -110,4 +110,8 @@ def reduce_embedding_dimension(embeddings, n_components=200):
     return reduced_embeddings
 
 if __name__ == "__main__":
-    generate_embeddings_for_all_files("code")
+    code_dir = "code"
+    if os.path.exists(code_dir):
+        generate_embeddings_for_all_files(code_dir)
+    else:
+        print(f"Error: The directory '{code_dir}' does not exist. Please create the directory and add the code files.")
